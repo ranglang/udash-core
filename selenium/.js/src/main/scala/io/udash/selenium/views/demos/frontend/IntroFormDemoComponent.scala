@@ -9,7 +9,6 @@ import io.udash.bootstrap.utils.BootstrapStyles
 import io.udash.css.CssView
 import scalatags.JsDom.all._
 
-import scala.collection.mutable
 import scala.util.Random
 
 /** The form's model structure. */
@@ -33,17 +32,17 @@ class IntroFormDemoComponent extends CssView {
       )
 
       // model validation
-      model.addValidator { element: IntroFormDemoModel =>
-        val errors = mutable.ArrayBuffer[String]()
-        if (element.minimum > element.maximum)
-          errors += "Minimum is bigger than maximum!"
-        if (element.minimum > element.between)
-          errors += "Minimum is bigger than your value!"
-        if (element.between > element.maximum)
-          errors += "Maximum is smaller than your value!"
-        if (errors.isEmpty) Valid
-        else Invalid(errors.map(DefaultValidationError))
-      }
+      //      model.addValidator { element: IntroFormDemoModel =>
+      //        val errors = mutable.ArrayBuffer[String]()
+      //        if (element.minimum > element.maximum)
+      //          errors += "Minimum is bigger than maximum!"
+      //        if (element.minimum > element.between)
+      //          errors += "Minimum is bigger than your value!"
+      //        if (element.between > element.maximum)
+      //          errors += "Maximum is smaller than your value!"
+      //        if (errors.isEmpty) Valid
+      //        else Invalid(errors.map(DefaultValidationError))
+      //      }
 
       val presenter = new IntroFormDemoPresenter(model)
       val view = new IntroFormDemoView(model, presenter)
@@ -113,17 +112,17 @@ class IntroFormDemoComponent extends CssView {
           randomizeButton.render
         )
       ).render,
-      h3("Is valid?", BootstrapStyles.Spacing.margin(BootstrapStyles.Side.Top)),
-      p(id := "valid")(
-        // validation binding - waits for model changes and updates the view
-        valid(model) {
-          case Valid => span("Yes").render
-          case Invalid(errors) => Seq(
-            span("No, because:"),
-            ul(errors.map(e => li(e.message)))
-          ).map(_.render)
-        }
-      )
+      //      h3("Is valid?", BootstrapStyles.Spacing.margin(BootstrapStyles.Side.Top)),
+      //      p(id := "valid")(
+      //        // validation binding - waits for model changes and updates the view
+      //        valid(model) {
+      //          case Valid => span("Yes").render
+      //          case Invalid(errors) => Seq(
+      //            span("No, because:"),
+      //            ul(errors.map(e => li(e.message)))
+      //          ).map(_.render)
+      //        }
+      //      )
     )
   }
 }

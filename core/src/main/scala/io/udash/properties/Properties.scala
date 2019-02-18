@@ -1,6 +1,6 @@
 package io.udash.properties
 
-import com.avsystem.commons._
+import com.avsystem.commons.ISeq
 import io.udash.properties.seq.PropertySeqCombinedReadableSeqProperty
 
 trait Properties {
@@ -22,14 +22,6 @@ trait Properties {
   type Patch[+P <: ReadableProperty[_]] = seq.Patch[P]
   type Blank[T] = io.udash.properties.Blank[T]
   final val Blank = io.udash.properties.Blank
-
-  type ValidationError = io.udash.properties.ValidationError
-  type DefaultValidationError = io.udash.properties.DefaultValidationError
-  type Validator[T] = io.udash.properties.Validator[T]
-  type ValidationResult = io.udash.properties.ValidationResult
-  final val Valid = io.udash.properties.Valid
-  final val Invalid = io.udash.properties.Invalid
-  final val DefaultValidationError = io.udash.properties.DefaultValidationError
 
   import Properties._
   implicit def any2Property[A](value: A): Any2Property[A] = new Any2Property(value)

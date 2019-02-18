@@ -32,11 +32,8 @@ import io.udash.bootstrap.utils._
 import io.udash.css.CssView
 import io.udash.logging.CrossLogging
 import io.udash.properties.seq.SeqProperty
-import org.scalajs.dom.Element
 import scalatags.JsDom
 
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.language.postfixOps
 import scala.util.Random
 
@@ -467,13 +464,13 @@ object BootstrapDemos extends CrossLogging {
     }
 
     val user = ModelProperty.blank[UserModel]
-    user.subProp(_.age).addValidator(new Validator[Int] {
-      override def apply(element: Int): Future[ValidationResult] =
-        Future {
-          if (element < 0) Invalid("Age should be a non-negative integer!")
-          else Valid
-        }
-    })
+    //    user.subProp(_.age).addValidator(new Validator[Int] {
+    //      override def apply(element: Int): Future[ValidationResult] =
+    //        Future {
+    //          if (element < 0) Invalid("Age should be a non-negative integer!")
+    //          else Valid
+    //        }
+    //    })
 
     div(
       UdashForm()(factory => Seq(

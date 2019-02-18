@@ -6,7 +6,6 @@ import io.udash.properties.single.{Property, ReadableProperty}
 import io.udash.utils.Registration
 
 import scala.collection.immutable
-import scala.concurrent.Future
 
 private[properties] class ImmutableProperty[A](value: A) extends ReadableProperty[A] {
   /** Unique property ID. */
@@ -15,12 +14,6 @@ private[properties] class ImmutableProperty[A](value: A) extends ReadablePropert
   /** @return Current property value. */
   @inline override def get: A = value
 
-  /** @return validation result as Future, which will be completed on the validation process ending. It can fire validation process if needed. */
-  @inline override def isValid: Future[ValidationResult] = Future.successful(Valid)
-
-  /** Property containing validation result. */
-  @inline override def valid: ReadableProperty[ValidationResult] = ImmutableProperty.validProp
-
   /**
     * Registers listener which will be called on value change.
     *
@@ -28,16 +21,15 @@ private[properties] class ImmutableProperty[A](value: A) extends ReadablePropert
     */
   override def listen(valueListener: A => Any, initUpdate: Boolean): Registration = {
     if (initUpdate) valueListener(value)
-    ImmutableProperty.noopRegistration
+    ImmutableProperty.NoopRegistration
   }
 
   /** Registers listener which will be called on the next value change. This listener will be fired only once. */
-  override def listenOnce(valueListener: A => Any): Registration = ImmutableProperty.noopRegistration
+  override def listenOnce(valueListener: A => Any): Registration = ImmutableProperty.NoopRegistration
 
   override protected[properties] def parent: ReadableProperty[_] = null
   override protected[properties] def fireValueListeners(): Unit = {}
   override protected[properties] def valueChanged(): Unit = {}
-  override protected[properties] def validate(): Unit = {}
   override protected[properties] def listenersUpdate(): Unit = {}
   override def listenersCount(): Int = 0
 
@@ -49,7 +41,7 @@ private[properties] class ImmutableProperty[A](value: A) extends ReadablePropert
 
   override def streamTo[B](target: Property[B], initUpdate: Boolean)(transformer: A => B): Registration = {
     if (initUpdate) target.set(transformer(value))
-    ImmutableProperty.noopRegistration
+    ImmutableProperty.NoopRegistration
   }
 
   override def readable: ReadableProperty[A] = this
@@ -70,7 +62,8 @@ private[properties] class ImmutableModelProperty[A](value: A)
   override def readable: ReadableModelProperty[A] = this
 }
 
-private[properties] class ImmutableSeqProperty[A](value: immutable.Seq[A]) extends ImmutableProperty[Seq[A]](value) with ReadableSeqProperty[A, ImmutableProperty[A]] {
+private[properties] class ImmutableSeqProperty[A](value: immutable.Seq[A])
+  extends ImmutableProperty[Seq[A]](value) with ReadableSeqProperty[A, ImmutableProperty[A]] {
   def this(value: Seq[A]) = this(value match {
     case v: immutable.Seq[A] => v
     case _ => value.to[immutable.Seq]
@@ -85,7 +78,7 @@ private[properties] class ImmutableSeqProperty[A](value: immutable.Seq[A]) exten
   override def structureListenersCount(): Int = 0
 
   override def listenStructure(structureListener: Patch[ImmutableProperty[A]] => Any): Registration =
-    ImmutableProperty.noopRegistration
+    ImmutableProperty.NoopRegistration
 
   override def transform[B](transformer: A => B): ReadableSeqProperty[B, ReadableProperty[B]] =
     new ImmutableSeqProperty(value.map(transformer))
@@ -102,9 +95,8 @@ private[properties] class ImmutableSeqProperty[A](value: immutable.Seq[A]) exten
   override def readable: ReadableSeqProperty[A, ImmutableProperty[A]] = this
 }
 
-private[properties] object ImmutableProperty {
-  val validProp: ImmutableProperty[ValidationResult] = new ImmutableProperty(Valid)
-  val noopRegistration = new Registration {
+private object ImmutableProperty {
+  final val NoopRegistration = new Registration {
     override def cancel(): Unit = {}
     override def restart(): Unit = {}
     override def isActive: Boolean = true

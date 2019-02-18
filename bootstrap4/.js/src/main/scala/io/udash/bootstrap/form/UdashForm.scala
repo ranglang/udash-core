@@ -17,10 +17,7 @@ import org.scalajs.dom.html.{Form, Input => JSInput}
 import org.scalajs.dom.raw.Event
 import scalatags.JsDom.all._
 
-import scala.collection.mutable
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{Duration, DurationLong}
-import scala.util.{Failure, Success}
 
 final class UdashForm private(
   formStyle: Option[CssStyle],
@@ -33,7 +30,7 @@ final class UdashForm private(
   import io.udash.css.CssView._
 
   class FormElementsFactory {
-    /** Use this method to bond the external binging's lifecycle with the lifecycle of this form. */
+    /** Use this method to bond the external binding's lifecycle with the lifecycle of this form. */
     def externalBinding[T <: Binding](binding: T): T = UdashForm.this.nestedInterceptor(binding)
 
     /**
@@ -143,7 +140,6 @@ final class UdashForm private(
               id := inputId,
               BootstrapStyles.Form.control,
               inputModifier.map(_.apply(externalBinding)),
-              validationModifier(property, validationTrigger, externalBinding),
               (BootstrapStyles.Form.size _).reactiveOptionApply(size)
             ), inputId
           )
@@ -178,7 +174,6 @@ final class UdashForm private(
               id := inputId,
               BootstrapStyles.Form.control,
               inputModifier.map(_.apply(externalBinding)),
-              validationModifier(property, validationTrigger, externalBinding),
               (BootstrapStyles.Form.size _).reactiveOptionApply(size)
             ), inputId
           )
@@ -213,7 +208,6 @@ final class UdashForm private(
               id := inputId,
               BootstrapStyles.Form.control,
               inputModifier.map(_.apply(externalBinding)),
-              validationModifier(property, validationTrigger, externalBinding),
               (BootstrapStyles.Form.size _).reactiveOptionApply(size)
             ), inputId
           )
@@ -252,7 +246,6 @@ final class UdashForm private(
               BootstrapStyles.Form.controlRange,
               BootstrapStyles.Form.customRange,
               inputModifier.map(_.apply(externalBinding)),
-              validationModifier(value, validationTrigger, externalBinding)
             ), inputId
           )
         )
@@ -286,7 +279,6 @@ final class UdashForm private(
               id := inputId,
               BootstrapStyles.Form.control,
               inputModifier.map(_.apply(externalBinding)),
-              validationModifier(property, validationTrigger, externalBinding),
               (BootstrapStyles.Form.size _).reactiveOptionApply(size)
             ), inputId
           )
@@ -335,7 +327,6 @@ final class UdashForm private(
             id := inputId,
             BootstrapStyles.Form.customFileInput,
             inputModifier.map(_.apply(nestedInterceptor)),
-            validationModifier(selectedFiles, validationTrigger, nestedInterceptor),
             (BootstrapStyles.Form.size _).reactiveOptionApply(size)
           )
 
@@ -381,7 +372,6 @@ final class UdashForm private(
               id := inputId,
               BootstrapStyles.Form.customSelect,
               inputModifier.map(_.apply(externalBinding)),
-              validationModifier(selectedItem, validationTrigger, externalBinding),
               nestedInterceptor((BootstrapStyles.Form.size _).reactiveOptionApply(size))
             ), inputId
           )
@@ -419,7 +409,6 @@ final class UdashForm private(
               id := inputId,
               BootstrapStyles.Form.customSelect,
               inputModifier.map(_.apply(externalBinding)),
-              validationModifier(selectedItems, validationTrigger, externalBinding),
               nestedInterceptor((BootstrapStyles.Form.size _).reactiveOptionApply(size))
             ), inputId
           )
@@ -464,7 +453,6 @@ final class UdashForm private(
             id := inputId,
             BootstrapStyles.Form.control,
             inputModifier.map(_.apply(nestedInterceptor)),
-            validationModifier(property, validationTrigger, nestedInterceptor)
           ))
 
           override val componentId: ComponentId = groupId
@@ -568,103 +556,6 @@ final class UdashForm private(
         )(inputModifier, labelContent, validFeedback, invalidFeedback))
       }
 
-      private def validationModifier(
-        property: ReadableProperty[_], validationTrigger: ValidationTrigger, nested: Binding.NestedInterceptor,
-        groupValidationTrigger: Option[Property[Int]] = None // value change on this property should trigger validation
-      ): Modifier = {
-        def groupTrigger(startValidation: () => Any) = new Binding {
-          override def applyTo(t: Element): Unit = {
-            groupValidationTrigger.foreach { p =>
-              propertyListeners += p.listen { _ =>
-                startValidation()
-              }
-            }
-          }
-        }
-
-        def startValidation(validationResult: Property[Option[ValidationResult]], triggerGroup: Boolean): Unit = {
-          if (triggerGroup) groupValidationTrigger.foreach { p => p.set(p.get + 1) }
-          validationResult.set(None)
-          property.isValid onComplete {
-            case Success(r) => validationResult.set(Some(r))
-            case Failure(ex) =>
-              logger.error("Validation failed.", ex)
-              validationResult.set(None)
-          }
-        }
-
-        def eventBasedModifiers(validationResult: Property[Option[ValidationResult]]): Modifier = Seq(
-          nested(BootstrapStyles.Form.isValid.styleIf(validationResult.transform(_.contains(Valid)))),
-          nested(BootstrapStyles.Form.isInvalid.styleIf(validationResult.transform(v => v.isDefined && !v.contains(Valid)))),
-          nested(groupTrigger(() => startValidation(validationResult, triggerGroup = false))),
-          nested(new Binding {
-            override def applyTo(t: Element): Unit =
-              validationProperties += validationResult
-
-            override def kill(): Unit = {
-              super.kill()
-              validationProperties -= validationResult
-            }
-          })
-        )
-
-        validationTrigger match {
-          case ValidationTrigger.None => Seq.empty[Modifier]
-          case ValidationTrigger.Instant =>
-            val validationResult = Property[Option[ValidationResult]](None)
-            Seq(
-              nested(new Binding {
-                override def applyTo(t: Element): Unit = {
-                  propertyListeners += property.listen({ _ =>
-                    startValidation(validationResult, triggerGroup = true)
-                  }, initUpdate = true)
-                  validationProperties += validationResult
-                }
-                override def kill(): Unit = {
-                  super.kill()
-                  validationProperties -= validationResult
-                }
-              }),
-              nested(BootstrapStyles.Form.isValid.styleIf(validationResult.transform(_.contains(Valid)))),
-              nested(BootstrapStyles.Form.isInvalid.styleIf(validationResult.transform(v => v.isDefined && !v.contains(Valid))))
-            )
-          case ValidationTrigger.OnBlur =>
-            val validationResult = Property[Option[ValidationResult]](None)
-            Seq(
-              eventBasedModifiers(validationResult),
-              onblur :+= { _: Event =>
-                startValidation(validationResult, triggerGroup = true)
-                false
-              }
-            )
-          case ValidationTrigger.OnChange =>
-            val validationResult = Property[Option[ValidationResult]](None)
-            Seq(
-              eventBasedModifiers(validationResult),
-              nested(new Binding {
-                override def applyTo(t: Element): Unit = {
-                  propertyListeners += property.listen { _ =>
-                      startValidation(validationResult, triggerGroup = true)
-                  }
-                }
-              })
-            )
-          case ValidationTrigger.OnSubmit =>
-            val validationResult = Property[Option[ValidationResult]](None)
-            Seq(
-              eventBasedModifiers(validationResult),
-              nested(new Binding {
-                override def applyTo(t: Element): Unit = {
-                  propertyListeners += listen {
-                    case ev: UdashForm.FormEvent if ev.tpe == UdashForm.FormEvent.EventType.Submit =>
-                      startValidation(validationResult, triggerGroup = true)
-                  }
-                }
-              })
-            )
-        }
-      }
-
       private class InputComponent(in: InputBinding[_ <: Element], inputId: ComponentId) extends UdashBootstrapComponent {
         private val input: InputBinding[_ <: Element] = nestedInterceptor(in)
         override val componentId: ComponentId = inputId
@@ -685,12 +576,10 @@ final class UdashForm private(
         invalidFeedback: (T, Int, Binding.NestedInterceptor) => Option[Modifier]
       ) extends UdashBootstrapComponent {
         private val inputs = nestedInterceptor(input { inputs =>
-          val groupValidationTrigger = Some(Property(0))
           inputs.zipWithIndex.map { case ((singleInput, item), idx) =>
             Seq[Modifier](
               BootstrapStyles.Form.customControlInput,
               inputModifier(item, idx, nestedInterceptor),
-              validationModifier(selected, validationTrigger, nestedInterceptor, groupValidationTrigger)
             ).applyTo(singleInput)
             div(
               singleInput,
@@ -723,12 +612,6 @@ final class UdashForm private(
       def col(size: Int, breakpoint: ResponsiveBreakpoint = ResponsiveBreakpoint.All)(content: Modifier*): Modifier =
         div(BootstrapStyles.Grid.col(size, breakpoint))(content)
     }
-  }
-
-  private[form] val validationProperties: mutable.Set[Property[Option[ValidationResult]]] = mutable.Set.empty
-
-  def clearValidationResults(): Unit = {
-    validationProperties.foreach(_.set(None))
   }
 
   override val render: Form =
